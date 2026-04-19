@@ -350,6 +350,22 @@ ai-offer pipeline daily-sync --date-from 2025-01-20
 - 低置信度结果虽然会留痕，但暂时没有审核 UI
 - 默认依赖本地 Hugging Face 模型和本地 Postgres
 
+## Acknowledgements
+
+本项目的小红书抓取能力基于 [MediaCrawler](https://github.com/NanmiCoder/MediaCrawler) 做适配集成。
+
+这里需要明确两点：
+
+- `bagu_killer` 没有把 `MediaCrawler` 源码 vendoring 到当前公开仓库里，而是把它作为外部依赖调用
+- 使用小红书抓取相关能力时，仍然需要你自己准备本地 `MediaCrawler` checkout，并遵守其许可证与相关平台规则
+
+`MediaCrawler` 当前仓库内声明的许可证为 `NON-COMMERCIAL LEARNING LICENSE 1.1`。因此：
+
+- 本仓库对 `MediaCrawler` 的引用仅用于学习和研究场景下的技术集成说明
+- 如你启用或分发依赖 `MediaCrawler` 的抓取能力，请自行确认其许可证约束是否适用于你的使用方式
+
+更详细的第三方依赖说明见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)。
+
 ## 一句话总结
 
 如果说普通面经是“别人记住了什么”，那 `bagu_killer` 做的是另一件事：

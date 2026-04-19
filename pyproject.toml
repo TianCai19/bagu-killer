@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "bagu_killer: a traceable AI Agent interview mining pipeline from crawl to canonical question bank."
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
 dependencies = [
     "httpx>=0.28.1",
     "jinja2>=3.1.6",
