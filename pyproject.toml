@@ -1,0 +1,37 @@
+[project]
+name = "ai-offer-catcher"
+version = "0.1.0"
+description = "bagu_killer: a traceable AI Agent interview mining pipeline from crawl to canonical question bank."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.28.1",
+    "jinja2>=3.1.6",
+    "playwright>=1.45.0",
+    "pillow>=10.0.0",
+    "pyhumps>=3.8.0",
+    "psycopg[binary]>=3.2.9",
+    "pydantic>=2.8.2",
+    "python-dotenv>=1.0.1",
+    "tenacity>=8.2.2",
+    "typer>=0.12.3",
+    "torch>=2.1.0",
+    "transformers>=4.57.0",
+    "xhshow>=0.1.9",
+]
+
+[project.scripts]
+ai-offer = "ai_offer_catcher.cli:app"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
