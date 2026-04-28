@@ -181,7 +181,7 @@ CREATE TABLE IF NOT EXISTS canonical_questions (
     normalized_text TEXT NOT NULL,
     fingerprint TEXT NOT NULL,
     question_type TEXT NOT NULL,
-    embedding vector(4096),
+    embedding vector(1024),
     post_count INTEGER NOT NULL DEFAULT 0,
     first_seen_post_id BIGINT REFERENCES raw_posts(id) ON DELETE SET NULL,
     last_seen_post_id BIGINT REFERENCES raw_posts(id) ON DELETE SET NULL,
