@@ -11,9 +11,16 @@ logger = logging.getLogger(__name__)
 class QwenVLModel:
     def __init__(self, model_path: Path, device: str) -> None:
         # LM Studio default API URL
+        # Determine model name from path for LM Studio
         self.model_path = str(model_path)
         self.api_base = "http://localhost:1234/v1"
-        self.model_name = str(model_path).split("/")[-1] # Extracted model name from path
+        
+        path_parts = self.model_path.split("/")
+        # For paths like .../google/gemma-4-e4b, we want google/gemma-4-e4b
+        if len(path_parts) >= 2 and path_parts[-2] != "huggingface_models":
+            self.model_name = f"{path_parts[-2]}/{path_parts[-1]}"
+        else:
+            self.model_name = path_parts[-1]
         self.client = OpenAI(base_url=self.api_base, api_key="lm-studio")
         self._model = True  # Mock initialization state
         self._processor = True
