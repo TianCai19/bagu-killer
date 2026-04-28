@@ -110,6 +110,7 @@ def load_posts_for_question(canonical_id):
     engine = get_engine()
     query = f"""
     SELECT 
+        rp.id as raw_post_id,
         rp.source_note_id,
         rp.title,
         rp.content,
@@ -125,6 +126,21 @@ def load_posts_for_question(canonical_id):
     JOIN extracted_questions eq ON pql.extracted_question_id = eq.id
     WHERE pql.canonical_question_id = {canonical_id}
     ORDER BY rp.published_at DESC
+    """
+    with engine.connect() as conn:
+        df = pd.read_sql(query, conn)
+    return df
+
+def load_ocr_for_post(raw_post_id):
+    engine = get_engine()
+    query = f"""
+    SELECT 
+        pi.image_index,
+        por.ocr_text
+    FROM post_images pi
+    JOIN post_ocr_results por ON pi.id = por.post_image_id
+    WHERE pi.raw_post_id = {raw_post_id} AND por.ocr_text != ''
+    ORDER BY pi.image_index
     """
     with engine.connect() as conn:
         df = pd.read_sql(query, conn)
@@ -230,7 +246,7 @@ else:
                 content_html = post['content'] or ""
                 
                 # Render post card
-                st.markdown(f"""
+                card_html = f"""
                 <div class="post-card">
                     <div class="post-title">📝 {post['title'] or '无标题帖子'}</div>
                     <div class="post-meta">
@@ -244,6 +260,25 @@ else:
                     <div style="margin-bottom: 8px; padding-left: 8px; border-left: 3px solid #ff9800; color: #ff9800; font-size: 13px;">
                         <b>大模型抽取的原话:</b> {extracted_q}
                     </div>
-                    <div class="post-content">{content_html}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                    <div class="post-content"><b>帖子正文：</b><br>{content_html}</div>
+                """
+                
+                # Fetch and append OCR text if available
+                ocr_df = load_ocr_for_post(post['raw_post_id'])
+                if not ocr_df.empty:
+                    ocr_html = "<br><br><b>🖼️ 图片 OCR 识别内容：</b><br>"
+                    for _, ocr_row in ocr_df.iterrows():
+                        ocr_html += f"<div style='background-color: #f0f0f0; padding: 8px; border-radius: 4px; margin-top: 4px; font-size: 13px;'><span style='color: #888;'>图 {ocr_row['image_index']}: </span>{ocr_row['ocr_text']}</div>"
+                    
+                    # Also replace in Dark mode style
+                    try:
+                        if 'dark' in st.get_option("theme.base"):
+                             ocr_html = ocr_html.replace("#f0f0f0", "#3a3a3a").replace("#888", "#aaa")
+                    except:
+                        pass
+                         
+                    card_html += ocr_html
+                
+                card_html += "</div>"
+                
+                st.markdown(card_html, unsafe_allow_html=True)
