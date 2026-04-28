@@ -30,18 +30,29 @@ def extract_first_json_object(text: str) -> dict[str, Any]:
         except json.JSONDecodeError:
             pass
 
+    # Attempt to extract markdown json blocks first (more reliable if it exists)
+    match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.S)
+    if match:
+        try:
+            return json.loads(match.group(1))
+        except json.JSONDecodeError:
+            pass
+
     # Robust fallback: find the last complete JSON block in the text (often models think first, then output JSON)
     # Match everything between { and }, handling nested structures by finding the widest possible match
-    match = re.search(r"\{.*\}", text, re.S)
+    match = re.search(r"(\{.*\})", text, re.S)
     if not match:
-        # One last desperate attempt if it's wrapped in a markdown code block
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.S)
-        if not match:
-            raise ValueError("No valid JSON object found in text")
+        raise ValueError("No valid JSON object found in text")
     
+    json_str = match.group(1)
+    
+    # If the JSON string is truncated, try to fix it by adding closing brackets
     try:
-        return json.loads(match.group(1 if len(match.groups()) > 0 else 0))
+        return json.loads(json_str)
     except json.JSONDecodeError as e:
+        # Check if the string ends abruptly and might be fixable (very basic heuristic)
+        if "Expecting value" in str(e) or "Unterminated string" in str(e) or "Expecting property name enclosed in double quotes" in str(e):
+            raise ValueError(f"Extracted JSON block appears to be truncated: {e}")
         raise ValueError(f"Failed to parse extracted JSON block: {e}")
 
 
