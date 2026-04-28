@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
 from datetime import datetime
 
 from ai_offer_catcher.app_settings import AppSettings
@@ -148,7 +149,21 @@ async def crawl_xiaohongshu(
                             repo.upsert_post_image(raw_post["id"], downloaded)
 
                         page_seen += 1
-                        await asyncio.sleep(settings.request_sleep_seconds)
+                        
+                        # Dynamic sleep based on content length and image count to simulate reading
+                        base_sleep = settings.request_sleep_seconds
+                        jitter = random.uniform(-0.5, 1.5)
+                        content_len = len(record.content) if record.content else 0
+                        image_cnt = len(record.images) if record.images else 0
+                        
+                        # Add extra sleep for longer posts (e.g. 0.5s per 100 chars, up to 3s)
+                        read_sleep = min(content_len * 0.005, 3.0)
+                        # Add extra sleep for scanning images (e.g. 0.2s per image, up to 2s)
+                        img_sleep = min(image_cnt * 0.2, 2.0)
+                        
+                        dynamic_sleep = max(1.0, base_sleep + jitter + read_sleep + img_sleep)
+                        logger.info("Fetched note %s, simulating read for %.2f seconds (len: %d, img: %d)", record.source_note_id, dynamic_sleep, content_len, image_cnt)
+                        await asyncio.sleep(dynamic_sleep)
 
                     if watermark and oldest_in_page and oldest_in_page <= watermark and page_new_posts == 0:
                         stale_pages += 1
