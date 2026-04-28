@@ -52,7 +52,8 @@ class QwenVLModel:
                     {"role": "user", "content": content}
                 ],
                 max_tokens=max_new_tokens,
-                temperature=0.7
+                temperature=0.7,
+                extra_body={"enable_thinking": False}
             )
             # Some local reasoning models might return content inside a different field or return it as empty if purely reasoning
             msg = response.choices[0].message
