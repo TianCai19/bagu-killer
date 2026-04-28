@@ -22,13 +22,27 @@ def render_prompt(env: Environment, template_name: str, **kwargs: Any) -> str:
 
 def extract_first_json_object(text: str) -> dict[str, Any]:
     text = text.strip()
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", text, re.S)
+    
+    # Fast path: if the model respected the prompt and output pure JSON
+    if text.startswith("{") and text.endswith("}"):
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+    # Robust fallback: find the last complete JSON block in the text (often models think first, then output JSON)
+    # Match everything between { and }, handling nested structures by finding the widest possible match
+    match = re.search(r"\{.*\}", text, re.S)
+    if not match:
+        # One last desperate attempt if it's wrapped in a markdown code block
+        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.S)
         if not match:
-            raise
-        return json.loads(match.group(0))
+            raise ValueError("No valid JSON object found in text")
+    
+    try:
+        return json.loads(match.group(1 if len(match.groups()) > 0 else 0))
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse extracted JSON block: {e}")
 
 
 def normalize_question(text: str) -> str:
