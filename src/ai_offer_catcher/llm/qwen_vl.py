@@ -2,61 +2,64 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+import base64
 from typing import Iterable
-
-import torch
+from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
-
 class QwenVLModel:
     def __init__(self, model_path: Path, device: str) -> None:
+        # LM Studio default API URL
         self.model_path = str(model_path)
-        self.device = device
-        self._model = None
-        self._processor = None
+        self.api_base = "http://localhost:1234/v1"
+        self.model_name = str(model_path).split("/")[-1] # Extracted model name from path
+        self.client = OpenAI(base_url=self.api_base, api_key="lm-studio")
+        self._model = True  # Mock initialization state
+        self._processor = True
 
     def _load(self) -> None:
-        if self._model is not None and self._processor is not None:
-            return
-        from PIL import Image
-        from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
+        pass  # Handled by LM Studio
 
-        self._pil_image = Image
-        self._processor = AutoProcessor.from_pretrained(self.model_path, trust_remote_code=True)
-        self._model = Qwen3VLForConditionalGeneration.from_pretrained(
-            self.model_path,
-            torch_dtype=torch.bfloat16 if self.device.startswith("cuda") else torch.float32,
-            device_map=self.device if self.device.startswith("cuda") else None,
-            trust_remote_code=True,
-        )
-        if not self.device.startswith("cuda"):
-            self._model = self._model.to(self.device)
+    def _encode_image(self, image_path: str) -> str:
+        with open(image_path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode('utf-8')
 
-    def generate(self, prompt: str, image_paths: Iterable[str] | None = None, max_new_tokens: int = 1024) -> str:
-        self._load()
-        assert self._model is not None
-        assert self._processor is not None
+    def generate(self, prompt: str, image_paths: Iterable[str] | None = None, max_new_tokens: int = 12000) -> str:
         image_paths = list(image_paths or [])
+        content = []
 
-        messages: list[dict] = [{"role": "user", "content": []}]
+        # Add image blocks
         for image_path in image_paths:
-            messages[0]["content"].append({"type": "image", "image": image_path})
-        messages[0]["content"].append({"type": "text", "text": prompt})
+            base64_image = self._encode_image(image_path)
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{base64_image}"
+                }
+            })
 
-        chat_text = self._processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        images = [self._pil_image.open(path).convert("RGB") for path in image_paths]
-        model_inputs = self._processor(
-            text=[chat_text],
-            images=images if images else None,
-            padding=True,
-            return_tensors="pt",
-        )
-        model_inputs = {key: value.to(self._model.device) if hasattr(value, "to") else value for key, value in model_inputs.items()}
-        generated_ids = self._model.generate(**model_inputs, max_new_tokens=max_new_tokens)
-        trimmed = [
-            output_ids[len(input_ids):]
-            for input_ids, output_ids in zip(model_inputs["input_ids"], generated_ids)
-        ]
-        decoded = self._processor.batch_decode(trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
-        return decoded[0].strip()
+        # Add text prompt block
+        content.append({
+            "type": "text",
+            "text": prompt
+        })
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "user", "content": content}
+                ],
+                max_tokens=max_new_tokens,
+                temperature=0.7
+            )
+            # Some local reasoning models might return content inside a different field or return it as empty if purely reasoning
+            msg = response.choices[0].message
+            return_text = msg.content or ""
+            if not return_text and hasattr(msg, "reasoning_content"):
+                return_text = msg.reasoning_content
+            return return_text.strip()
+        except Exception as e:
+            logger.error(f"LM Studio API generation error: {e}")
+            raise
